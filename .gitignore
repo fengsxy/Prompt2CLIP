@@ -39,11 +39,7 @@ models/
 logs/
 *.log
 
-# Ignore config files
-config/
-*.yaml
-*.yml
-*.ini
+
 
 # Ignore system files
 .DS_Store
