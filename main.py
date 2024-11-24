@@ -1,11 +1,10 @@
-# main.py
-
 import torch
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
 import os
 from typing import List, Dict, Tuple
+import json
 
 from config.config import Config
 from data.coco_loader import COCOLoader
@@ -13,9 +12,15 @@ from models.clip_wrapper import CLIPWrapper
 from models.gradcam import GradCAM
 from evaluation.metrics import EvaluationMetrics
 from evaluation.visualizer import Visualizer
+from tools.prompt_generator import PromptGenerator
 
 class ExperimentRunner:
-    def __init__(self):
+    def __init__(self, prompt_file: str):
+        """Initialize experiment runner
+        
+        Args:
+            prompt_file: Path to JSON file containing prompts
+        """
         self.config = Config()
         self.coco_loader = COCOLoader(self.config)
         self.clip_wrapper = CLIPWrapper(self.config)
@@ -23,51 +28,16 @@ class ExperimentRunner:
         self.metrics = EvaluationMetrics()
         self.visualizer = Visualizer(self.config)
         
-    def generate_prompt(
-        self,
-        object_name: str,
-        context_info: str = None,
-        prompt_type: str = 'baseline'
-    ) -> str:
-        """Generate prompts based on different experiment types
+        # Load prompts
+        self.prompt_data = PromptGenerator.load_prompts(prompt_file)
         
-        Args:
-            object_name (str): Name of the target object
-            context_info (str, optional): Additional context information
-            prompt_type (str): Type of prompt to generate ('baseline', 'context', or 'caption')
-            
-        Returns:
-            str: Generated prompt text
-        """
-        if prompt_type == 'baseline':
-            return object_name
-        elif prompt_type == 'context':
-            return f"{context_info} {object_name}"
-        elif prompt_type == 'caption':
-            return f"a photo of {context_info} with a {object_name}"
-        else:
-            raise ValueError(f"Unknown prompt type: {prompt_type}")
-            
     def process_single_image(
         self,
         image_info: Dict,
         object_name: str,
         prompt: str
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, float]]:
-        """Process a single image
-        
-        Args:
-            image_info: Image metadata
-            object_name: Target object name
-            prompt: Text prompt
-            
-        Returns:
-            Tuple containing:
-            - normalized image
-            - attention heatmap
-            - ground truth mask
-            - evaluation metrics
-        """
+        """Process a single image with given prompt"""
         try:
             # Load image
             image = self.coco_loader.load_image(image_info)
@@ -80,18 +50,13 @@ class ExperimentRunner:
                 
             # Convert to RGB PIL image and resize for CLIP
             image_pil = Image.fromarray(image).convert('RGB')
-            image_pil = image_pil.resize((224, 224))  # CLIP's expected input size
+            image_pil = image_pil.resize((224, 224))
             
             # Get ground truth mask
             gt_mask = self.coco_loader.get_object_masks(image_info, object_name)
             if gt_mask is None:
-                print(f"Failed to get mask for object {object_name} in image {image_info['id']}")
+                print(f"Failed to get mask for object {object_name}")
                 return None
-            
-            # Print shapes for debugging
-            print(f"\nProcessing image {image_info['id']}:")
-            print(f"Original image shape: {original_image.shape}")
-            print(f"Ground truth mask shape: {gt_mask.shape}")
             
             # Prepare inputs
             image_input = self.clip_wrapper.encode_image(image_pil)
@@ -105,8 +70,6 @@ class ExperimentRunner:
                 self.clip_wrapper.get_target_layer()
             )
             
-            print(f"Generated heatmap shape: {heatmap.shape}")
-            
             # Compute evaluation metrics
             metrics = self.metrics.compute_metrics(heatmap, gt_mask)
             
@@ -116,98 +79,87 @@ class ExperimentRunner:
             return image_norm, heatmap, gt_mask, metrics
             
         except Exception as e:
-            print(f"Error processing image {image_info['id']}: {str(e)}")
+            print(f"Error processing image: {str(e)}")
             return None
     
-    def run_experiment(
-        self,
-        prompt_types: List[str] = ['baseline', 'context', 'caption'],
-        save_dir: str = 'results'
-    ):
-        """Run the complete experiment
-        
-        Args:
-            prompt_types: List of prompt types to test
-            save_dir: Directory to save results
-            
-        Returns:
-            Dict: Average metrics for each prompt type
-        """
-        # Create save directory
+    def run_experiment(self, save_dir: str = 'results'):
+        """Run experiment using loaded prompts"""
         os.makedirs(save_dir, exist_ok=True)
         
-        # Get experimental image set
-        print("Selecting diverse images...")
-        selected_images = self.coco_loader.select_diverse_images()
-        
-        # Store results
-        all_results = {prompt_type: [] for prompt_type in prompt_types}
+        # Store results for each prompt type
+        all_results = {}
         
         # Process each image
-        for idx, (img_info, objects, captions) in enumerate(tqdm(selected_images)):
-            try:
-                # Process each object
-                for obj in objects:
-                    # Test each prompt type
-                    for prompt_type in prompt_types:
-                        # Generate prompt
-                        context = captions[0] if prompt_type == 'caption' else None
-                        prompt = self.generate_prompt(obj, context, prompt_type)
+        for image_key, image_data in tqdm(self.prompt_data.items()):
+            img_info = self.coco_loader.coco.loadImgs(int(image_data['image_id']))[0]
+            
+            # Process each object with different prompt types
+            for obj in image_data['objects']:
+                for prompt_type, prompts in image_data['prompts'].items():
+                    if prompt_type not in all_results:
+                        all_results[prompt_type] = []
                         
-                        # Process image
-                        result = self.process_single_image(img_info, obj, prompt)
-                        if result is None:
-                            print(f"Skipping image {img_info['id']} for object {obj}")
-                            continue
-                            
-                        image, heatmap, gt_mask, metrics = result
+                    # Get specific prompt for this object
+                    prompt = prompts[obj]
+                    
+                    # Process image
+                    result = self.process_single_image(img_info, obj, prompt)
+                    if result is None:
+                        continue
                         
-                        # Save path
-                        save_path = os.path.join(
-                            save_dir,
-                            f"img_{idx}_{obj}_{prompt_type}.png"
-                        )
-                        
-                        # Visualize and save
-                        self.visualizer.plot_results(
-                            image,
-                            heatmap,
-                            gt_mask,
-                            metrics,
-                            f"Object: {obj}, Prompt: {prompt}",
-                            save_path
-                        )
-                        
-                        # Record metrics
-                        all_results[prompt_type].append(metrics)
-                        
-            except Exception as e:
-                print(f"Error processing image {idx}: {str(e)}")
-                continue
-                
+                    image, heatmap, gt_mask, metrics = result
+                    
+                    # Save visualization
+                    save_path = os.path.join(
+                        save_dir,
+                        f"{image_key}_{obj}_{prompt_type}.png"
+                    )
+                    
+                    self.visualizer.plot_results(
+                        image,
+                        heatmap,
+                        gt_mask,
+                        metrics,
+                        f"Object: {obj}, Prompt: {prompt}",
+                        save_path
+                    )
+                    
+                    # Record metrics
+                    all_results[prompt_type].append({
+                        'image_id': image_data['image_id'],
+                        'object': obj,
+                        'prompt': prompt,
+                        'metrics': metrics
+                    })
+        
         # Calculate average metrics
         avg_results = {}
-        for prompt_type in prompt_types:
-            if not all_results[prompt_type]:
-                print(f"No valid results for prompt type: {prompt_type}")
+        for prompt_type, results in all_results.items():
+            if not results:
                 continue
                 
-            metrics_list = all_results[prompt_type]
             avg_metrics = {
-                metric: np.mean([m[metric] for m in metrics_list])
-                for metric in metrics_list[0].keys()
+                metric: np.mean([r['metrics'][metric] for r in results])
+                for metric in results[0]['metrics'].keys()
             }
             avg_results[prompt_type] = avg_metrics
+            
+        # Save detailed results
+        with open(os.path.join(save_dir, 'results.json'), 'w') as f:
+            json.dump({
+                'average_metrics': avg_results,
+                'detailed_results': all_results
+            }, f, indent=4)
             
         return avg_results
 
 def main():
-    # Set random seeds for reproducibility
+    # Set random seeds
     torch.manual_seed(42)
     np.random.seed(42)
     
-    # Create experiment runner
-    runner = ExperimentRunner()
+    # Create experiment runner with prompt file
+    runner = ExperimentRunner('prompts_template.json')
     
     # Run experiment
     print("Starting experiment...")
