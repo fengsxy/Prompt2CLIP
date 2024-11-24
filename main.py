@@ -159,7 +159,7 @@ def main():
     np.random.seed(42)
     
     # Create experiment runner with prompt file
-    runner = ExperimentRunner('prompts_template.json')
+    runner = ExperimentRunner('Updated_PROMPTS_TEMPLATE.JSON')
     
     # Run experiment
     print("Starting experiment...")

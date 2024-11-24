@@ -20,7 +20,7 @@ class Config:
     DEVICE = 'cuda'  # Device for model inference, fallback to 'cpu' if GPU not available
     
     # Experiment settings
-    NUM_IMAGES = 10  # Number of images to process
+    NUM_IMAGES = 5  # Number of images to process
     MIN_OBJECTS = 2   # Minimum number of objects per image
     MAX_OBJECTS = 3   # Maximum number of objects per image
     
