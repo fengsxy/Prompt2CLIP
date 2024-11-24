@@ -138,7 +138,7 @@ class Visualizer:
             
             # Add title and metrics
             if title:
-                fig.suptitle(title)
+                fig.suptitle(title[:200], fontsize=12)
                 
             if metrics:
                 metric_text = '\n'.join(

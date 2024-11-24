@@ -15,7 +15,7 @@ class SimpleConfig:
     CAPTION_ANN_FILE = os.path.join(COCO_ROOT, 'annotations', f'captions_{DATA_TYPE}.json')
     
     # Number of images to process
-    NUM_IMAGES = 500
+    NUM_IMAGES = 5
     MIN_OBJECTS = 2
     MAX_OBJECTS = 3
 
