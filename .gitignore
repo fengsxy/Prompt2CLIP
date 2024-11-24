@@ -1,0 +1,63 @@
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore virtual environment
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Ignore data files
+data/
+*.csv
+*.tsv
+*.json
+*.xml
+*.h5
+*.hdf5
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Ignore model files
+models/
+*.h5
+*.hdf5
+*.pb
+*.pt
+*.pth
+*.ckpt
+
+# Ignore log files
+logs/
+*.log
+
+# Ignore config files
+config/
+*.yaml
+*.yml
+*.ini
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore other large files
+*.mp4
+*.avi
+*.mkv
+*.mp3
+*.wav
+*.flac
+*.ogg
+
+# Ignore coco and results folders
+coco/
+results/
