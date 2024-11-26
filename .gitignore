@@ -57,3 +57,4 @@ Thumbs.db
 # Ignore coco and results folders
 coco/
 results/
+.env
