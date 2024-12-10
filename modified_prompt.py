@@ -33,9 +33,9 @@ def construct_message_list(templates):
             Task: I will provide a central object. Please extract the context related to this object and create a more imaginative description. Add plausible details or elements that enhance the setting.
             Input: Obj: {obj}
             Context sentences: {context_sentences}
-            Instruction: Refine the context and enrich it with imaginative details to create a vivid and engaging scene.
+            Instruction: Refine the context and enrich it with imaginative details to create a vivid and engaging scene. Add a lot of not realated context.
             Output Format: 
-            Direltly give the output in the format: {obj} with {{refined and imaginative description}} with 50 words.
+            Direltly give the output in the format: {obj} with {{refined and imaginative description}} with 30 words.
             Don't give any othter thing.
             """
             message_list.append({

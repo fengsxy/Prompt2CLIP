@@ -14,7 +14,6 @@ ENV/
 .ipynb_checkpoints
 
 # Ignore data files
-data/
 *.csv
 *.tsv
 *.json
@@ -27,7 +26,6 @@ data/
 *.7z
 
 # Ignore model files
-models/
 *.h5
 *.hdf5
 *.pb

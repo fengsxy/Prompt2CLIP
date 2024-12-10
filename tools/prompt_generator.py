@@ -15,7 +15,7 @@ class SimpleConfig:
     CAPTION_ANN_FILE = os.path.join(COCO_ROOT, 'annotations', f'captions_{DATA_TYPE}.json')
     
     # Number of images to process
-    NUM_IMAGES = 5
+    NUM_IMAGES = 50
     MIN_OBJECTS = 2
     MAX_OBJECTS = 3
 
@@ -45,9 +45,6 @@ class PromptGenerator:
             # Get unique object categories in this image
             objects = set(self.coco.loadCats(cat_id)[0]['name'] 
                          for cat_id in [ann['category_id'] for ann in anns])
-            selected_obj = "skis"
-            if not (selected_obj in objects):
-                continue
             # Check if number of objects is in our range
             if self.config.MIN_OBJECTS <= len(objects) <= self.config.MAX_OBJECTS:
                 img_info = self.coco.loadImgs(img_id)[0]
